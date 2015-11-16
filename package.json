@@ -1,0 +1,16 @@
+{
+  "name": "walkie-talkie",
+  "version": "1.0.0",
+  "description": "walkie-talkie demo using socket.io",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "doug colaizzo",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.3",
+    "socket.io": "^1.3.7"
+  }
+}

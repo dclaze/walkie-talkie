@@ -1,0 +1,111 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="app.css"></link>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script type="text/javascript">
+    function initAudio() {
+        if (!navigator.getUserMedia)
+            navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (!navigator.cancelAnimationFrame)
+            navigator.cancelAnimationFrame = navigator.webkitCancelAnimationFrame || navigator.mozCancelAnimationFrame;
+        if (!navigator.requestAnimationFrame)
+            navigator.requestAnimationFrame = navigator.webkitRequestAnimationFrame || navigator.mozRequestAnimationFrame;
+
+    }
+
+    var socket = io();
+    var sendingContext = new AudioContext();
+    var receivingContext = new AudioContext();
+    var queue = [];
+    var currentlyPlayingSource = null;
+    
+    socket.on('talk', function(message) {
+        queue.push(message);
+        tryProcessNextServerAudioBuffer();
+    });
+
+    function tryProcessNextServerAudioBuffer() {
+        var isCurrentlyProcessing = currentlyPlayingSource != null;
+        if (isCurrentlyProcessing)
+            return;
+        processNextServerAudioBuffer();
+    }
+
+    function processNextServerAudioBuffer() {
+        var message = queue.shift();
+        if (message == null) {
+            currentlyPlayingSource = null;
+        } else {
+            var myArrayBuffer = receivingContext.createBuffer(message.channels, message.stream.length, message.sampleRate);
+            myArrayBuffer.copyToChannel(new Float32Array(message.stream), 0, 0);
+            var source = currentlyPlayingSource = receivingContext.createBufferSource();
+            source.buffer = myArrayBuffer;
+            source.connect(receivingContext.destination);
+            source.onended = function() {
+                processNextServerAudioBuffer();
+            };
+            source.start();
+        }
+    }
+
+    var currentStream, currentRecorder;
+
+    function streamAudio(stream) {
+        currentStream = stream;
+        var audioInput = sendingContext.createMediaStreamSource(stream);
+        var bufferSize = 16384;
+        var recorder = currentRecorder = sendingContext.createScriptProcessor(bufferSize, 1, 1);
+        recorder.onaudioprocess = function(e) {
+            var outputArray = [];
+            var buffer = e.inputBuffer.getChannelData(0);
+            buffer.forEach(function(v, b) {
+                outputArray.push(v)
+            });
+            var message = {
+                stream: outputArray,
+                sampleRate: sendingContext.sampleRate,
+                channels: 1
+            };
+            socket.emit('talk', message);
+        }
+        audioInput.connect(recorder);
+        recorder.connect(sendingContext.destination);
+    }
+
+    function stopTransmitAudio(stream) {
+        if (currentStream && currentRecorder) {
+            currentStream.getTracks().forEach(function(t) {
+                t.stop();
+            });
+            currentRecorder.disconnect();//TODO Make disconnect when audio is actually stopped;
+        }
+    }
+
+    function transmitAudio() {
+        navigator.getUserMedia({
+            audio: true,
+            video: false
+        }, streamAudio, function(e) {
+            console.warn('No live audio input: ' + e);
+        });
+    }
+
+
+    window.onload = function() {
+        initAudio();
+        var walkieTalkieButton = document.getElementById('walkie-talkie-handle');
+        walkieTalkieButton.addEventListener('mousedown', transmitAudio);
+        walkieTalkieButton.addEventListener('mouseup', stopTransmitAudio);
+
+    }
+    </script>
+</head>
+
+<body>
+    <button id="walkie-talkie-handle" class="walkie-talkie-button">
+        Talk
+    </button>
+</body>
+
+</html>

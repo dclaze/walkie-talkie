@@ -1,0 +1,16 @@
+body {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;;
+}
+
+.walkie-talkie-button {
+	display: block;
+    height: 300px;
+    width: 400px;
+    margin: auto;
+}
