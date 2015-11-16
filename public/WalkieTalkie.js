@@ -52,12 +52,8 @@ WalkieTalkie.prototype.startCapture = function(callback) {
         var audioInput = self.captureContext.createMediaStreamSource(stream);
         self.currentCaptureProcessorNode = self.captureContext.createScriptProcessor(16384, 1, 1);
         self.currentCaptureProcessorNode.onaudioprocess = function(e) {
-            var outputArray = [];
             var buffer = e.inputBuffer.getChannelData(0);
-            buffer.forEach(function(v, b) {
-                outputArray.push(v)
-            });
-            callback(outputArray, {
+            callback(Array.apply([], buffer), {
                 sampleRate: self.captureContext.sampleRate,
                 channels: 1
             });
