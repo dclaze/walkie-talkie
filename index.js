@@ -10,7 +10,7 @@ io.on('connection', function(socket) {
 
     socket.on('talk', function(msg) {
         socket.broadcast.to('walkie-talkie').emit('talk', msg);
-    })
+    });
 });
 
 http.listen(3011, function() {

@@ -17,31 +17,51 @@
     initAudio();
 
     var socket = io();
+
     var walkieTalkie = new WalkieTalkie();
     socket.on('talk', function(message) {
         walkieTalkie.play(message.stream, message.streamInfo);
     });
+
     window.onload = function() {
         var walkieTalkieButton = document.getElementById('walkie-talkie-handle');
         walkieTalkieButton.addEventListener('mousedown', function() {
             walkieTalkie.startCapture(function(stream, streamInfo) {
-                socket.emit('talk', {
-                    stream: stream,
-                    streamInfo: streamInfo
-                });
+                socket.emit('talk', { stream: stream, streamInfo: streamInfo });
             })
         });
         walkieTalkieButton.addEventListener('mouseup', function() {
             walkieTalkie.stopCapture();
+        });
+
+        var onSwitch = document.getElementById("on-switch");
+        onSwitch.addEventListener("click", function(){
+            walkieTalkie.turnOn(function(){
+                walkieTalkieButton.disabled = false;
+            });
+        });
+        var offSwitch = document.getElementById("off-switch");
+        offSwitch.addEventListener("click", function(){
+            walkieTalkie.turnOff(function(){
+                walkieTalkieButton.disabled = true;
+            });
         });
     }
     </script>
 </head>
 
 <body>
-    <button id="walkie-talkie-handle" class="walkie-talkie-button">
+    <button id="walkie-talkie-handle" class="walkie-talkie-button" disabled="true">
         Talk
     </button>
+    <label>
+        On
+        <input id="on-switch" type="radio" name="switch"/>
+    </label>
+    <label>
+        Off
+        <input id="off-switch" type="radio" name="switch" checked="true" />
+    </label>
     <div class="volume-meter"></div>
 </body>
 

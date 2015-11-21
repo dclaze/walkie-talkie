@@ -1,7 +1,10 @@
 function WalkieTalkie() {
     this.captureContext = new AudioContext();
     this.currentCaptureStream = null;
+    this.currentAudioInput = null;
     this.currentCaptureProcessorNode = null;
+
+    this.paused = false;
 
     this.playbackContext = new AudioContext();
     this.bufferQueue = [];
@@ -42,29 +45,62 @@ WalkieTalkie.prototype._processNextServerAudioBuffer = function() {
     }
 }
 
-WalkieTalkie.prototype.startCapture = function(callback) {
+WalkieTalkie.prototype.turnOn = function(callback) {
     var self = this;
     navigator.getUserMedia({
         audio: true,
         video: false
     }, function(stream) {
-        self.currentCaptureStream = stream;
-        var audioInput = self.captureContext.createMediaStreamSource(stream);
-        self.currentCaptureProcessorNode = self.captureContext.createScriptProcessor(16384, 1, 1);
-        self.currentCaptureProcessorNode.onaudioprocess = function(e) {
-            var buffer = e.inputBuffer.getChannelData(0);
-            callback(Array.apply([], buffer), {
-                sampleRate: self.captureContext.sampleRate,
-                channels: 1
-            });
-            self._logVolume(buffer, "in");
-        };
-
-        audioInput.connect(self.currentCaptureProcessorNode);
-        self.currentCaptureProcessorNode.connect(self.captureContext.destination);
-    }, function(e) {
-        console.warn('No live audio input: ' + e);
+        self._setupCapture(stream);
+        callback(self);
+    }, function(error) {
+        alert(error);
     });
+};
+
+WalkieTalkie.prototype._setupCapture = function(stream) {
+    var self = this;
+    self.currentAudioInput = self.captureContext.createMediaStreamSource(stream);
+    self.currentCaptureProcessorNode = self.captureContext.createScriptProcessor(8192, 1, 1);
+    self.currentCaptureStream = stream;
+    stream.onended = function() {
+        self.currentAudioInput.disconnect();
+        self.currentAudioInput = null;
+        self.currentCaptureProcessorNode.disconnect();
+        self.currentCaptureProcessorNode = null;
+        self.currentCaptureStream = null;
+    };
+};
+
+WalkieTalkie.prototype.turnOff = function(callback) {
+    this.currentCaptureStream.getTracks().forEach(function(t) {
+        t.stop();
+    });
+};
+
+WalkieTalkie.prototype.startCapture = function(callback) {
+    var self = this;
+    self.paused = false;
+
+    self.currentCaptureProcessorNode.onaudioprocess = function(e) {
+        var buffer = e.inputBuffer.getChannelData(0);
+        callback(Array.apply([], buffer), {
+            sampleRate: self.captureContext.sampleRate,
+            channels: 1
+        });
+        self._logVolume(buffer, "in");
+
+        if (self.paused) {
+            self.currentCaptureProcessorNode.disconnect(); //Wait to disconnect once the buffer has finished processing
+        }
+    };
+    self.currentAudioInput.connect(self.currentCaptureProcessorNode);
+    self.currentCaptureProcessorNode.connect(self.captureContext.destination);
+};
+
+WalkieTalkie.prototype.stopCapture = function() {
+    this.paused = true;
+    this.currentAudioInput.disconnect();
 };
 
 WalkieTalkie.prototype._logVolume = function(buffer, tag) {
@@ -76,13 +112,4 @@ WalkieTalkie.prototype._logVolume = function(buffer, tag) {
     }
     var rms = Math.sqrt(sum / buffer.length);
     console.log(tag, rms);
-}
-
-WalkieTalkie.prototype.stopCapture = function() {
-    if (this.currentCaptureStream && this.currentCaptureProcessorNode) {
-        this.currentCaptureStream.getTracks().forEach(function(t) {
-            t.stop();
-        });
-        this.currentCaptureProcessorNode.disconnect(); //TODO Make disconnect when audio is actually stopped;
-    }
 };
