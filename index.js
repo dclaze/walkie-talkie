@@ -1,7 +1,15 @@
 var express = require('express'),
     app = express(),
     http = require('http').Server(app),
-    io = require('socket.io')(http);
+    io = require('socket.io')(http),
+    fs = require('fs'),
+    nconf = require('nconf');
+
+nconf.argv()
+    .env()
+    .file({
+        file: 'config.json'
+    });
 
 app.use(express.static('public'));
 
@@ -13,6 +21,6 @@ io.on('connection', function(socket) {
     });
 });
 
-http.listen(3011, function() {
-    console.log('listening on *:3011');
+http.listen(nconf.get('server:port'), function() {
+    console.log('listening on *:', nconf.get('server:port'));
 });
