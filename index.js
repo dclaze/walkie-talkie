@@ -21,6 +21,7 @@ io.on('connection', function(socket) {
     });
 });
 
-http.listen(nconf.get('server:port'), function() {
-    console.log('listening on *:', nconf.get('server:port'));
+var port = process.env.PORT || nconf.get('server:port');
+http.listen(port, function() {
+    console.log('listening on *:', port);
 });
